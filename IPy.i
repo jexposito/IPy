@@ -188,6 +188,7 @@ func register(cubedata, method=, xmin=, ymin=, dx=, dy=, starwidth=, flat=, sky=
 	 cubedata  : cube of images containing the data
 	 method    : method to use to register.
 				 Set to "c_cor" to use a cross-correlation method.
+				 Set to "wavelet" to use a wavelet decomposition before cross-correlation. See keyword 'order'.
 				 Set to "star_fit" to use a Gaussian fitting on a star (xmin/ymin, dx, dy, starwidth are recommanded).
 	 xmin/ymin : coordinates of the left bottom corner of the sub-images
 	 dx        : width of the box
@@ -200,14 +201,14 @@ func register(cubedata, method=, xmin=, ymin=, dx=, dy=, starwidth=, flat=, sky=
 	 verbose   : set to 1 if you want details
 	 disp      : set to 1 if you want a display of the median/averaged final image
 	 
-	 xmin/ymin, dx, dy, starwidth, flat, sky, dark, verbose and disp are optionnal parameters
+	 xmin/ymin, dx, dy, starwidth, order, flat, sky, dark, verbose and disp are optionnal parameters
 	 for the star fitting method but strongly recommended.
 	 These parameters are optional for cross-correlation method.
 	 
 	 */
 
 {
-	if ((method != "star_fit") && (method != "c_cor")) {
+	if ((method != "star_fit") && (method != "c_cor") && (method != "wavelet")) {
 		write, "";
 		write, "/!\\ Warning: No method was chosen for the registration. Cross-correlation will be used.";
 		write, "";
@@ -234,6 +235,7 @@ func register(cubedata, method=, xmin=, ymin=, dx=, dy=, starwidth=, flat=, sky=
 	}
 	
 	if (is_void(starwidth)) starwidth = 2;
+	if (is_void(order)) order = 5;
 
 	if (!is_void(dark)) dark = makedark(dark, med=med, verbose=verbose); else dark = 0.;
 	if (!is_void(flat)) {
@@ -314,9 +316,13 @@ func register(cubedata, method=, xmin=, ymin=, dx=, dy=, starwidth=, flat=, sky=
 		}
 	
 	} else {
-		/* Using cross-correlation method */
+		/* Using cross-correlation method or wavelet */
 		
-		Imref = cubedata(xmin:xmin+dx-1, ymin:ymin+dy-1, 1); // First image as the reference
+		if (method == "c_cor") { // Wavelet or cross-correlation. First Image as reference.
+			Imref = cubedata(xmin:xmin+dx-1, ymin:ymin+dy-1, 1)
+		} else {
+			Imref = yeti_wavelet(cubedata(xmin:xmin+dx-1, ymin:ymin+dy-1, 1), 5)(.., [3, 4, 5])(.., sum);
+		}
 		cor   = Imref( , , -::dim0(4)-1) * 0.;
 		dim   = dimsof(cor);
 		
@@ -328,9 +334,18 @@ func register(cubedata, method=, xmin=, ymin=, dx=, dy=, starwidth=, flat=, sky=
 		/* Computing the cross-correlation */
 		if (verbose) write, "\n\rComputing cross-correlations...";
 		
-		for (i=1 ; i<= dim0(4) ; i++) {
-			cor(.., i)  = roll(correlate(Imref, cubedata(xmin:xmin+dx-1, ymin:ymin+dy-1, i)).re);
+		if (method == "c_cor") { // Wavelet or cross-correlation.
+			for (i=1 ; i<= dim0(4) ; i++) {
+				imc			= cubedata(xmin:xmin+dx-1, ymin:ymin+dy-1, i);
+				cor(.., i)  = roll(correlate(Imref, imc).re);
+			}
+		} else {
+			for (i=1 ; i<= dim0(4) ; i++) {
+				imc			= yeti_wavelet(cubedata(xmin:xmin+dx-1, ymin:ymin+dy-1, i), 5)(.., [3, 4, 5])(.., sum);
+				cor(.., i)  = roll(correlate(Imref, imc).re);
+			}
 		}
+		
 		ref  = float(wheremax(cor(.., 1)));
 		xref = ref(1);
 		yref = ref(2);
