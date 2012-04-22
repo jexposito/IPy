@@ -269,7 +269,7 @@ func register(cubedata, method=, xmin=, ymin=, dx=, dy=, starwidth=, flat=, sky=
 		
 		/* Reference parameters */
 		if (verbose) write, "\n\nEstimation of parameters for gaussian fit on star"
-		ref		= where2(Imref == max(Imref));
+		ref		= wheremax(Imref);
 		xref	= ref(1);
 		yref	= ref(2);
 		Iref	= Imref(lround(xref), lround(yref));
@@ -427,6 +427,89 @@ func register(cubedata, method=, xmin=, ymin=, dx=, dy=, starwidth=, flat=, sky=
 	return regcube;
 }
 
+func quick_reg(cubedata)
+	/* DOCUMENT
+		quick_reg(cubedata)
+	 
+		Fast registration using the brightest pixel to estimate the shift.
+		Returns the averaged image after registration.
+	 
+		SEE ALSO: register
+	 */
+{
+	if (is_void(cubedata)) error, "No data to register.";
+	
+	n		= dimsof(cubedata)(4);
+	im		= cubedata(.., 1) * 0.;
+	
+	ref		= wheremax(cubedata(.., 1));
+	xref	= ref(1);
+	yref	= ref(2);
+	
+	for (i=2 ; i<=n ; ++i) {
+		posmax	= wheremax(cubedata(.., i));
+		dx		= posmax(1) - xref;
+		dy		= posmax(2) - yref;
+		im		+= roll(cubedata(.., i), [-dx, -dy]);
+	}
+	im /= n;
+	
+	return im;
+}
+
+/*func r0_estim(im)
+	/*	DOCUMENT
+	 
+		Rough r0 estimation (in pixels) for Speckel images
+	 
+	 */
+/*{
+	dim				= dimsof(im);
+	xy				= mesh_xy(dim(2), dim(3));
+	pos				= wheremax(im);
+	xpos			= pos(1);
+	ypos			= pos(2);
+	Imax			= im(xpos, ypos);
+	dy				= dx = 10.;
+	w				= im * 0. + 1.;
+	w(xpos, ypos)	= 0;
+	
+	param	= [Imax, xpos, ypos, dx, dy, 0., min(im)];
+	
+	res		= lmfit(gauss2d, xy, param, im, w, deriv=1, \
+					itmax=2000, fit=[1, 2, 3, 4, 5, 7], tol=1.e-3);
+	
+	return 2. * avg(param([4, 5]));
+}*/
+
+func speckle(cubedata)
+	/* DOCUMENT
+ 
+
+ 
+	 */
+{
+	n		= dimsof(cubedata)(4);
+	
+	S		= cubedata(.., 1) * 0.; // power spectrum
+	
+	for (i=1 ; i<=n ; ++i) {
+		S	+= abs(fft(cubedata(.., i), 1))^2;
+	}
+	S		/= max(S);
+	
+	//im_tot	= smooth(quick_reg(cubedata), 20);
+	//B		= abs(fft(im_tot))^2;
+	//B		/= max(B);
+	
+	R		= S /// B//fft(S).re; // Restored image
+
+	wind;
+	pli, roll(R);
+	
+	return roll(R);
+}
+
 
 func mesh_xy(dim_x, dim_y)
 	/* DOCUMENT
@@ -486,7 +569,7 @@ func wheremax(array)
 
 	*/
 {
-	posmax	= where2(array == max(array));
+	posmax	= where2(array == max(array))(, 1);
 	
 	return posmax;
 }
