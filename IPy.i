@@ -432,27 +432,26 @@ func quick_reg(cubedata)
 		quick_reg(cubedata)
 	 
 		Fast registration using the brightest pixel to estimate the shift.
-		Returns the averaged image after registration.
 	 
 		SEE ALSO: register
 	 */
 {
 	if (is_void(cubedata)) error, "No data to register.";
 	
-	n		= dimsof(cubedata)(4);
-	im		= cubedata(.., 1) * 0.;
+	n			= dimsof(cubedata)(4);
+	im			= cubedata * 0.;
 	
-	ref		= wheremax(cubedata(.., 1));
-	xref	= ref(1);
-	yref	= ref(2);
+	im(.., 1)	= cubedata(.., 1);
+	ref			= wheremax(cubedata(.., 1));
+	xref		= ref(1);
+	yref		= ref(2);
 	
 	for (i=2 ; i<=n ; ++i) {
-		posmax	= wheremax(cubedata(.., i));
-		dx		= posmax(1) - xref;
-		dy		= posmax(2) - yref;
-		im		+= roll(cubedata(.., i), [-dx, -dy]);
+		posmax		= wheremax(cubedata(.., i));
+		dx			= posmax(1) - xref;
+		dy			= posmax(2) - yref;
+		im(.., i)	= roll(cubedata(.., i), [-dx, -dy]);
 	}
-	im /= n;
 	
 	return im;
 }
