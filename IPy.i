@@ -36,6 +36,7 @@ func view_images(path, pattern, first, last, extension, dir=)
 	wind(); // Create the window;
 	
 	/* Checking the synthax of dir */
+	if (is_void(dir)) error, "No directory specified for bad data.";
 	dirsynthax = strchar(dir);
 	if (dirsynthax(-2) != strchar("/")(1)) dir = dir + "/";
 	
@@ -281,7 +282,7 @@ func register(cubedata, method=, xmin=, ymin=, dx=, dy=, starwidth=, flat=, sky=
 		if (verbose) write, "\nFitting the star...";
 		
 		param	= [Iref, xref, yref, dxref, dyref, 0., Imref(avg)];
-		res		= lmfit(gauss2d, xy, param, Imref, 1., deriv=1, itmax=1000, fit=[1, 2, 3, 4, 5, 7]);
+		res		= lmfit(gauss2d, xy, param, Imref, 1., deriv=1, itmax=5000, fit=[1, 2, 3, 4, 5, 7]);
 
 		if (verbose)
 		{
@@ -315,7 +316,7 @@ func register(cubedata, method=, xmin=, ymin=, dx=, dy=, starwidth=, flat=, sky=
 		par(7)	= sscube(.., i)(avg);
 	
 		res		= lmfit(gauss2d, xy, par, sscube(.., i), 1., deriv=1, \
-						itmax=2000, fit=[1, 2, 3, 4, 5, 7], tol = 1.e-3);
+						itmax=5000, fit=[1, 2, 3, 4, 5, 7], tol = 1.e-5);
 		
 		
 		regcube(dim2(2)/4:3*dim2(2)/4-1, dim2(3)/4:3*dim2(3)/4-1, i) = (cubedata(.., i) - sky) / flat;
@@ -398,7 +399,7 @@ func register(cubedata, method=, xmin=, ymin=, dx=, dy=, starwidth=, flat=, sky=
 			param	= [Icor, xpos, ypos, dx, dy, 0., subcor(avg)];
 			
 			res		= lmfit(gauss2d, xy, param, subcor, 1., deriv=1, \
-							itmax=2000, fit=[1, 2, 3, 4, 5, 7], tol=1.e-3);
+							itmax=5000, fit=[1, 2, 3, 4, 5, 7], tol=1.e-5);
 			
 			regcube(dim2(2)/4:3*dim2(2)/4-1, dim2(3)/4:3*dim2(3)/4-1, i) = (cubedata(.., i) - sky) / flat;
 			
