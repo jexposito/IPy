@@ -181,10 +181,16 @@ func makesky(cubesky, med=, verbose=)
 	return sky;
 }
 
-func register(cubedata, method=, xmin=, ymin=, dx=, dy=, starwidth=, flat=, sky=, dark=, med=, verbose=, disp=) 
+func register(cubedata, method=, quick=, \
+			  xmin=, ymin=, dx=, dy=, starwidth=, \
+			  flat=, sky=, dark=, med=, 
+			  verbose=, disp=) 
 	/* DOCUMENT 
 
-	register(cubedata, method=, xmin=, ymin=, dx=, dy=, starwidth=, flat=, sky=, dark=, med=, verbose=, disp=)
+	register(cubedata, method=, quick=, 
+				xmin=, ymin=, dx=, dy=, starwidth=,
+				flat=, sky=, dark=, med=, 
+				verbose=, disp=)
 	
 	Register a serie of images.
 	
@@ -193,6 +199,7 @@ func register(cubedata, method=, xmin=, ymin=, dx=, dy=, starwidth=, flat=, sky=
 					Set to "c_cor" to use a cross-correlation method.
 					Set to "wavelet" to use a wavelet decomposition before cross-correlation.
 					Set to "star_fit" to use a Gaussian fitting on a star (xmin/ymin, dx, dy, starwidth are recommanded).
+	quick		: Set to 1 to perform a quick registration with the "brightest pixel" method before the accurate one
 	xmin/ymin	: coordinates of the left bottom corner of the sub-images
 	dx			: width of the box
 	dy			: height of the box
@@ -239,7 +246,7 @@ func register(cubedata, method=, xmin=, ymin=, dx=, dy=, starwidth=, flat=, sky=
 		} else dy	= dx;
 	}
 	
-	if (is_void(starwidth)) starwidth = 2;
+	if (is_void(starwidth)) starwidth = 4.;
 
 	if (!is_void(dark)) dark = makedark(dark, med=med, verbose=verbose); else dark = 0.;
 	
@@ -250,6 +257,11 @@ func register(cubedata, method=, xmin=, ymin=, dx=, dy=, starwidth=, flat=, sky=
 	if (!is_void(sky))  sky  = makesky(sky, med=med, verbose=verbose); else sky = 0.;
 		
 	winkill, 0; winkill, 1;
+
+	if (quic) {
+		if (verbose) write, "\n\rQuick registration ...";
+		cubedata = quick_reg(cubedata);
+	}
 
 	if (method == "star_fit") {
 		/* Using star fitting method */
