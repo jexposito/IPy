@@ -258,7 +258,7 @@ func register(cubedata, method=, quick=, \
 		
 	winkill, 0; winkill, 1;
 
-	if (quic) {
+	if (quick) {
 		if (verbose) write, "\n\rQuick registration ...";
 		cubedata = quick_reg(cubedata);
 	}
@@ -328,7 +328,7 @@ func register(cubedata, method=, quick=, \
 		par(7)	= sscube(.., i)(avg);
 	
 		res		= lmfit(gauss2d, xy, par, sscube(.., i), 1., deriv=1, \
-						itmax=5000, fit=[1, 2, 3, 4, 5, 7], tol = 1.e-5);
+						itmax=5000, fit=[1, 2, 3, 4, 5, 7], tol = 1.e-3);
 		
 		
 		regcube(dim2(2)/4:3*dim2(2)/4-1, dim2(3)/4:3*dim2(3)/4-1, i) = (cubedata(.., i) - sky) / flat;
@@ -349,7 +349,7 @@ func register(cubedata, method=, quick=, \
 			Imref = yeti_wavelet(cubedata(xmin:xmin+dx-1, ymin:ymin+dy-1, 1), 5)(.., [3, 4, 5])(.., sum);
 		}
 		
-		cor		= Imref( , , -::dim0(4)-1) * 0.;
+		cor		= array(float, [2, 2 * dx, 2 * dy])(, , -::dim0(4)-1);
 		dim		= dimsof(cor);
 		
 		if (verbose) {
@@ -361,15 +361,18 @@ func register(cubedata, method=, quick=, \
 		/* Computing the cross-correlation */
 		if (verbose) write, "\n\rComputing cross-correlations...";
 		
+		cor_ref	= imc = cor(.., 1);
+		cor_ref(xmin:xmin+dx-1, ymin:ymin+dy-1)	= Imref;
+		
 		if (method == "c_cor") { // Wavelet or cross-correlation.
 			for (i=1 ; i<= dim0(4) ; i++) {
-				imc			= cubedata(xmin:xmin+dx-1, ymin:ymin+dy-1, i);
-				cor(.., i)	= roll(correlate(Imref, imc).re);
+				imc(xmin:xmin+dx-1, ymin:ymin+dy-1)	= cubedata(xmin:xmin+dx-1, ymin:ymin+dy-1, i);
+				cor(.., i)							= roll(correlate(cor_ref, imc).re);
 			}
 		} else {
 			for (i=1 ; i<= dim0(4) ; i++) {
-				imc			= yeti_wavelet(cubedata(xmin:xmin+dx-1, ymin:ymin+dy-1, i), 5)(.., [3, 4, 5])(.., sum);
-				cor(.., i)	= roll(correlate(Imref, imc).re);
+				imc(xmin:xmin+dx-1, ymin:ymin+dy-1)	= yeti_wavelet(cubedata(xmin:xmin+dx-1, ymin:ymin+dy-1, i), 5)(.., [3, 4, 5])(.., sum);
+				cor(.., i)							= roll(correlate(cor_ref, imc).re);
 			}
 		}
 		
@@ -411,7 +414,7 @@ func register(cubedata, method=, quick=, \
 			param	= [Icor, xpos, ypos, dx, dy, 0., subcor(avg)];
 			
 			res		= lmfit(gauss2d, xy, param, subcor, 1., deriv=1, \
-							itmax=5000, fit=[1, 2, 3, 4, 5, 7], tol=1.e-5);
+							itmax=3000, fit=[1, 2, 3, 4, 5, 7], tol=1.e-3);
 			
 			regcube(dim2(2)/4:3*dim2(2)/4-1, dim2(3)/4:3*dim2(3)/4-1, i) = (cubedata(.., i) - sky) / flat;
 			
