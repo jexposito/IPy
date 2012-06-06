@@ -3,12 +3,47 @@
  * The Image Processing in yorick package
  *
  * Developped by J. Exposito
+ *
  */
-
 
 require, "yeti.i";
 require, "fft_utils.i";
 require, "util_fr.i";
+
+func ipy(void)
+	/* DOCUMENT
+
+	 IPy.i
+	 The Image Processing in yorick package
+
+	 Developped by J. Exposito
+
+	 List of functions : 
+
+		view_images	: display images for the selection
+
+		makecube	: create a cube of data mandatory for registration
+
+		quick_reg	: quick registration using the brightest pixel
+
+		register	: fine registration
+
+		makedark	: create a dark frame
+
+		makeflat	: create a flat field frame
+
+		makesky		: create a sky frame
+
+		correlate	: compute the auto/cross-correlation between images
+
+		wheremax	: return the position in pixel of the max of an array
+
+		wind		: create a smart window to display images
+
+		mesh_xy		: create a 3D array of coordinates in pixels
+
+	*/
+{return ;}
 
 
 func view_images(path, pattern, first, last, extension, dir=)
