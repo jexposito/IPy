@@ -365,7 +365,6 @@ func register(cubedata, method=, quick=, \
 		res		= lmfit(gauss2d, xy, par, sscube(.., i), 1., deriv=1, \
 						itmax=5000, fit=[1, 2, 3, 4, 5, 7], tol = 1.e-3);
 		
-		
 		regcube(dim2(2)/4:3*dim2(2)/4-1, dim2(3)/4:3*dim2(3)/4-1, i) = (cubedata(.., i) - sky) / flat;
 	
 		/* Shift */
@@ -440,17 +439,17 @@ func register(cubedata, method=, quick=, \
 		for (i=2 ; i<=dim(4) ; i++) {
 			
 			subcor	= cor(.., i);
-			Icor	= max(cor);
+			Icor	= max(subcor);
 			pos		= wheremax(subcor)(, 1); // case for several maxima
 			xpos	= pos(1);
 			ypos	= pos(2);
-			dy		= dx = 0.25 * dim(2);
+			dy		= dx = sqrt((numberof(where(subcor >= 0.5 * Icor)))/pi);
 			
 			param	= [Icor, xpos, ypos, dx, dy, 0., subcor(avg)];
 			
 			res		= lmfit(gauss2d, xy, param, subcor, 1., deriv=1, \
-							itmax=3000, fit=[1, 2, 3, 4, 5, 7], tol=1.e-3);
-			
+							itmax=5000, fit=[1, 2, 3, 4, 5, 7], tol=1.e-4);
+						
 			regcube(dim2(2)/4:3*dim2(2)/4-1, dim2(3)/4:3*dim2(3)/4-1, i) = (cubedata(.., i) - sky) / flat;
 			
 			/* Shift */
@@ -607,6 +606,26 @@ func correlate(f, g, dir=)
 	cor	= fft(conj(fft(f, dir)) * fft(g, dir), -dir) / numberof(f);
 	
 	return cor;
+}
+
+func trinome(x, a, &grad, deriv=)
+/* DOCUMENT
+ 
+
+ 
+ */
+{
+	n	= numberof(a);
+	y	= a(1) * x^2 + a(2) * x+ a(3);
+	
+	if (deriv) {
+		grad		= x(, -:1:n) * 0.;
+		grad(, 1)	= x^2;
+		grad(, 2)	= x;
+		grad(, 3)	= 1.;
+	}
+	
+	return y;
 }
 
 func wheremax(array)
