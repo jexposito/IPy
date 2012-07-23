@@ -580,7 +580,7 @@ func mesh_xy(dim_x, dim_y)
 		return;
 	}
 	
-	xy	= [indgen(dim_x)(,-:1:dim_y), indgen(dim_y)(-:1:dim_x,)];
+	xy	= [indgen(dim_x)(, -:1:dim_y), indgen(dim_y)(-:1:dim_x, )];
 	
 	return xy;	
 }
@@ -608,24 +608,34 @@ func correlate(f, g, dir=)
 	return cor;
 }
 
-func trinome(x, a, &grad, deriv=)
-/* DOCUMENT
+func trinome(xy, a, &grad, deriv=)
+	/* DOCUMENT
  
-
+		a(1) : I0
+		a(2) : x0
+		a(3) : y0
+		a(4) : offset
  
- */
+	 */
 {
 	n	= numberof(a);
-	y	= a(1) * x^2 + a(2) * x+ a(3);
+	x	= xy(.., 1);
+	y	= xy(.., 2);
+	I0	= a(1);
+	x0	= a(2);
+	y0	= a(3);
+	c	= a(4);
+	p	= I0 * ((x - x0)^2 + (y - y0)^2) + c;
 	
 	if (deriv) {
-		grad		= x(, -:1:n) * 0.;
-		grad(, 1)	= x^2;
-		grad(, 2)	= x;
-		grad(, 3)	= 1.;
+		grad		= x(,,-:1:n) * 0.;
+		grad(, , 1)	= (x - x0)^2 + (y - y0)^2;
+		grad(, , 2)	= -2. * I0 * (x - x0);
+		grad(, , 3)	= -2. * I0 * (y - y0);
+		grad(, , 4)	= 1.;
 	}
 	
-	return y;
+	return p;
 }
 
 func wheremax(array)
