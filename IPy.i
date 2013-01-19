@@ -18,7 +18,11 @@ func ipy(void)
 
 	 Developped by J. Exposito
 
-	 List of functions : 
+	 List of functions :
+	 
+		convert_jpg : convert .jpeg images into .fits format
+					  gray  : convert .jpeg into .fits
+					  color : convert .jpeg into .fits with suffix -red/green/blue
 
 		view_images	: display images for the selection
 
@@ -52,6 +56,10 @@ func view_images(path, pattern, first, last, extension, dir=)
 	view_images(path, pattern, first, last, extension, dir=)
 
 	Function displaying images and move in a new directory unusable data if set.
+	
+	Valid extensions : .jpeg, .jpg, .JPG, .JPEG, and all .fits format.
+	
+	All jpeg data must be converted before registration using convert_jpg().
 
 	path		: path to the data
 	pattern		: recurrent pattern of the data
@@ -90,6 +98,15 @@ func view_images(path, pattern, first, last, extension, dir=)
 		return;
 	}
 	
+	/* Taking into account the extension */
+	if (extension == ".jpeg" || extension == ".JPEG" || extension == ".JPG" || extension == ".jpg")
+	{
+		read_im = jpeg_read;
+	} else {
+		read_im = fits_read;
+	}
+
+	
 	/* Initialisation of the flag */
 	answ	= 0;
 	
@@ -97,7 +114,7 @@ func view_images(path, pattern, first, last, extension, dir=)
 	for (i=1 ; i<=n ; i++) {
 		
 		/* Displaying */
-		fma; pli, fits_read(names(i));
+		fma; pli, read_im(names(i));
 		/* Ask for action */
 		write, "\n" + names(i);
 		write, "\nPreserve the file ? 1: yes";
@@ -113,6 +130,62 @@ func view_images(path, pattern, first, last, extension, dir=)
 		else write, "Preserved...\n";
 
 	}
+}
+
+func convert_jpg(path, pattern, first, last, extension)
+/* DOCUMENT
+ 
+ convert_jpg(path, pattern, first, last, extension, dir=)
+ 
+ Convert .jpeg images into .fits images.
+ 
+ For a black-and-white image IMG_1000.jpeg, the conversion create the file IMG_1000.fits.
+ For a color image, the conversion create three files : red-IMG_1000.fits,
+ green-IMG_1000.fits,
+ blue-IMG_1000.fits.
+ 
+ The .jpeg images are preserved.
+ 
+ See view_images for the parameters description.
+ 
+ */
+{
+	/* Listing existing files */
+	range	= indgen(first:last);
+	names	= path + "/" + pattern + strtrim(swrite(range)) + extension;
+	prefix	=
+	names	= names(where(fileExist(names)));
+	n		= numberof(names);
+	le		= strlen(extension)
+	lp		= strlen(path + "/");
+	
+	if (noneof(n)) 
+	{
+		write, "\n/!\\ No file exists ! Nothing to return.";
+		return;
+	}
+	write, "";
+	
+	/* Loop on images */
+	for (i=1 ; i<=n ; i++) {
+		
+		write, "Converting image " + names(i); 
+		im	= float(jpeg_read(names(i)));
+		dim	= dimsof(im)(1);
+		ll	= strlen(names(i));
+		
+		if (dim == 1) 
+		{
+			fits_write, strpart(names(i), 1:ll - le), im;
+		} 
+		else {
+			fits_write, strpart(names(i), 1:lp) + "red-" + strpart(names(i), lp + 1:ll - le) + ".fits", im(1, ..);
+			fits_write, strpart(names(i), 1:lp) + "green-" + strpart(names(i), lp + 1:ll - le) + ".fits", im(2, ..);
+			fits_write, strpart(names(i), 1:lp) + "blue-" + strpart(names(i), lp + 1:ll - le) + ".fits", im(3, ..);
+		}
+		
+	}
+	
 }
 
 func makecube(path, pattern, first, last, extension)
@@ -216,13 +289,13 @@ func makesky(cubesky, med=, verbose=)
 	return sky;
 }
 
-func register(cubedata, method=, quick=, \
+func register(cubedata, method=, quick=, interpol=, \
 			  xmin=, ymin=, dx=, dy=, starwidth=, \
 			  flat=, sky=, dark=, med=, 
 			  verbose=, disp=) 
 	/* DOCUMENT 
 
-	register(cubedata, method=, quick=, 
+	register(cubedata, method=, quick=, interpol=,
 				xmin=, ymin=, dx=, dy=, starwidth=,
 				flat=, sky=, dark=, med=, 
 				verbose=, disp=)
@@ -235,6 +308,10 @@ func register(cubedata, method=, quick=, \
 					Set to "wavelet" to use a wavelet decomposition before cross-correlation.
 					Set to "star_fit" to use a Gaussian fitting on a star (xmin/ymin, dx, dy, starwidth are recommanded).
 	quick		: Set to 1 to perform a quick registration with the "brightest pixel" method before the accurate one
+	interpol	: method to interpolate the position of the maximum of correlation. 
+					Set to "gaussian" for a gaussian fitting of the correlation function.
+					Set to "sqare" for a second order polynomial fitting of the correlation function.
+					Set to "no" to get only the position of the maximum of correlation.
 	xmin/ymin	: coordinates of the left bottom corner of the sub-images
 	dx			: width of the box
 	dy			: height of the box
@@ -259,6 +336,12 @@ func register(cubedata, method=, quick=, \
 		write, "";
 		typeReturn;
 		method	= "c_cor";
+	}
+	
+	if (is_void(interpol)) {
+		interpol	= "no";
+		write, "Interpolation set to 'No'";
+		write, "";
 	}
 	
 	/* Initialisation */
@@ -438,18 +521,45 @@ func register(cubedata, method=, quick=, \
 		/* Gaussian fitting */
 		for (i=2 ; i<=dim(4) ; i++) {
 			
-			subcor	= cor(.., i);
-			Icor	= max(subcor);
-			pos		= wheremax(subcor)(, 1); // case for several maxima
-			xpos	= pos(1);
-			ypos	= pos(2);
-			dy		= dx = sqrt((numberof(where(subcor >= 0.5 * Icor)))/pi);
+			if (interpol == "gaussian") {
+				subcor	= cor(.., i);
+				Icor	= max(subcor);
+				pos		= wheremax(subcor)(, 1); // case for several maxima
+				xpos	= pos(1);
+				ypos	= pos(2);
+				dy		= dx = sqrt((numberof(where(subcor >= 0.5 * Icor)))/pi);
+				weight	= subcor * 0.;
+				weight(where(subcor >= 0.3 * Icor)) = 1.;
+				
+				param	= [Icor, xpos, ypos, dx, dy, 0., subcor(avg)];
+				
+				res		= lmfit(gauss2d, xy, param, subcor, 1., deriv=1, \
+								itmax=5000, fit=[1, 2, 3, 4, 5, 7], tol=1.e-4);
+				
+			} else if (interpol == "square") {
+				subcor	= cor(.., i);
+				offset	= max(subcor); // Max because decreasing correlation 
+				pos		= wheremax(subcor)(, 1); // case for several maxima
+				x0		= pos(1);
+				y0		= pos(2);
+				ax		= (subcor(y0, x0+3) - offset) / ((x0 + 3)^2 - x0^2); // estimation of coefficients
+				ay		= (subcor(x0+3, y0) - offset) / ((y0 + 3)^2 - x0^2);
+				
+				param	= [ax, ay, x0, y0, offset];
+				
+				weight	= subcor * 0.;
+				weight(x0-5:x0+5, y0-5:y0+5)	= 1.; // fit on 11x11 square pixels around the maximum
+				
+				res		= lmfit(trinome, xy, param, subcor, weight, deriv=1, \
+								itmax=5000, tol=1.e-4);
+				param	= [0., param(3), param(4)];
+				
+			} else if (interpol == "no") {
+				subcor	= cor(.., i);
+				shifts	= wheremax(subcor);
+				param	= [0., shifts(1), shifts(2)]; // to respect dx = param(2) & dy = param(3)
+			}
 			
-			param	= [Icor, xpos, ypos, dx, dy, 0., subcor(avg)];
-			
-			res		= lmfit(gauss2d, xy, param, subcor, 1., deriv=1, \
-							itmax=5000, fit=[1, 2, 3, 4, 5, 7], tol=1.e-4);
-						
 			regcube(dim2(2)/4:3*dim2(2)/4-1, dim2(3)/4:3*dim2(3)/4-1, i) = (cubedata(.., i) - sky) / flat;
 			
 			/* Shift */
@@ -504,6 +614,51 @@ func quick_reg(cubedata)
 	}
 	
 	return im;
+}
+
+func rgb(red, green, blue, scale=)
+	/* DOCUMENT
+ 
+	 Display and return a composite color image with red/green/blue images.
+	 
+	 Red/green/blue must have the same dimensions.
+	 
+	 The array returned is rgb = [red, green, blue] type 
+	 and rgb = array(char, 3, x_dimension, y_dimension);
+	 
+	 The parameter scale is set to : 
+	 
+		- "linear" by default,
+		- "log" for a log scaling of the pixels,
+		- "sqrt" for a square root scaling.
+ 
+	 */
+{
+
+	if (scale == "log")
+	{
+		red		= log10(red - min(red) + 1.);
+		green	= log10(green - min(green) + 1.);
+		blue	= log10(blue - min(blue) + 1.);
+	}
+	if (scale == "sqrt")
+	{
+		red		= sqrt(red - min(red));
+		green	= sqrt(green - min(green));
+		blue	= sqrt(blue - min(blue));
+	}
+	
+	red		= bytscl(red);
+	green	= bytscl(green);
+	blue	= bytscl(blue);
+
+	RGB		= transpose([transpose(red), transpose(green), transpose(blue)]); // transpose to keep the orientation
+	
+	wind;
+	
+	pli, RGB;
+	
+	return RGB;
 }
 
 /*func r0_estim(im)
@@ -611,28 +766,33 @@ func correlate(f, g, dir=)
 func trinome(xy, a, &grad, deriv=)
 	/* DOCUMENT
  
-		a(1) : I0
-		a(2) : x0
-		a(3) : y0
-		a(4) : offset
+		y = I0x * (x - x0)^2 + I0y * (y - y0)^2 + c;
+	 
+		a(1) : I0x
+		a(2) : I0y
+		a(3) : x0
+		a(4) : y0
+		a(5) : offset = c
  
 	 */
 {
 	n	= numberof(a);
 	x	= xy(.., 1);
 	y	= xy(.., 2);
-	I0	= a(1);
-	x0	= a(2);
-	y0	= a(3);
-	c	= a(4);
-	p	= I0 * ((x - x0)^2 + (y - y0)^2) + c;
+	I0x	= a(1);
+	I0y	= a(2);
+	x0	= a(3);
+	y0	= a(4);
+	c	= a(5);
+	p	= I0x * (x - x0)^2 + I0y * (y - y0)^2 + c;
 	
 	if (deriv) {
 		grad		= x(,,-:1:n) * 0.;
-		grad(, , 1)	= (x - x0)^2 + (y - y0)^2;
-		grad(, , 2)	= -2. * I0 * (x - x0);
-		grad(, , 3)	= -2. * I0 * (y - y0);
-		grad(, , 4)	= 1.;
+		grad(, , 1)	= (x - x0)^2;
+		grad(, , 2)	= (y - y0)^2;
+		grad(, , 3)	= -2. * I0x * (x - x0);
+		grad(, , 4)	= -2. * I0y * (y - y0);
+		grad(, , 5)	= 1.;
 	}
 	
 	return p;
@@ -653,18 +813,23 @@ func wheremax(array)
 	return posmax;
 }
 
-func wind(n, dpi)
+func wind(n, dpi=, palet=, style=)
 	/* DOCUMENT
 	
 	Create a window (dpi = 120, style nobox, squared limits & gray color)
 	
-	
+	SEE ALSO : window
 	*/
 {
-	if (is_void(n))		n	= 0;
-	if (is_void(dpi))	dpi	= 120;
+	if (is_void(n))		n		= 0;
+	if (is_void(dpi))	dpi		= 120;
+	if (is_void(palet))	palet	= "gray.gp";
+	if (is_void(style))	style	= "nobox.gs";
+	
 	winkill, n;
-	window, n, dpi=dpi, style="nobox.gs";
+	window, n, dpi=dpi, style=style;
 	limits, square=1;
-	palette, "gray.gp";
+	palette, palet;
+	
+	return;
 }
