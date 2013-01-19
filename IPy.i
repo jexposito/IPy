@@ -35,6 +35,8 @@ func ipy(void)
 		makedark	: create a dark frame
 
 		makeflat	: create a flat field frame
+	 
+		rgb			: Display a color image and return an array of "color" images
 
 		makesky		: create a sky frame
 
@@ -76,7 +78,7 @@ func view_images(path, pattern, first, last, extension, dir=)
 
 	*/
 {
-	wind(); // Create the window;
+	wind; // Create the window;
 	
 	/* Checking the synthax of dir */
 	if (is_void(dir)) error, "No directory specified for bad data.";
@@ -340,7 +342,8 @@ func register(cubedata, method=, quick=, interpol=, \
 	
 	if (is_void(interpol)) {
 		interpol	= "no";
-		write, "Interpolation set to 'No'";
+		write, "";
+		write, "/!\\ Warning: Interpolation set to 'No'";
 		write, "";
 	}
 	
@@ -576,7 +579,7 @@ func register(cubedata, method=, quick=, interpol=, \
 	
 	if (disp) 
 	{
-		wind();
+		wind;
 		if (med) {
 			pli, median(regcube, 3);
 		} else pli, regcube(.., avg);
