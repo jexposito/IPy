@@ -22,7 +22,7 @@ func ipy(void)
 	 
 		convert_jpg : convert .jpeg images into .fits format
 					  gray  : convert .jpeg into .fits
-					  color : convert .jpeg into .fits with suffix -red/green/blue
+					  color : convert .jpeg into .fits with prefix red/green/blue
 
 		view_images	: display images for the selection
 
